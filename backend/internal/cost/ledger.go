@@ -9,10 +9,10 @@ import (
 )
 
 type Ledger struct {
-	mu     sync.Mutex
-	limit  float64
-	spent  float64
-	items  []model.CostRecord
+	mu    sync.Mutex
+	limit float64
+	spent float64
+	items []model.CostRecord
 }
 
 func New(limit float64) *Ledger {
@@ -34,10 +34,10 @@ func (l *Ledger) Record(rec model.CostRecord) {
 	}
 	l.mu.Lock()
 	l.items = append(l.items, rec)
-	l.mu.Unlock()
 	if rec.OK {
 		l.spent += rec.CNY
 	}
+	l.mu.Unlock()
 	logger.Info("cost.record", "provider", rec.Provider, "cny", rec.CNY, "ok", rec.OK)
 }
 
