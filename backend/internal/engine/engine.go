@@ -71,7 +71,16 @@ func Open(cfg *config.Config) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer wlog.Close()
+	// WAL lifecycle is owned by the Engine: it must stay open after a
+	// successful Open so that CreateCollection / indexLocked can append.
+	// Engine.Close() closes it on the happy path; this defer only fires
+	// if Open bails early, so we never leak the file handle.
+	walOwned := false
+	defer func() {
+		if !walOwned {
+			_ = wlog.Close()
+		}
+	}()
 	ledger := cost.New(cfg.BudgetLimitCNY)
 	e := &Engine{
 		Cfg: cfg, Ledger: ledger,
@@ -103,6 +112,7 @@ func Open(cfg *config.Config) (*Engine, error) {
 	if err := e.recover(); err != nil {
 		return nil, err
 	}
+	walOwned = true
 	e.recMS = time.Since(start).Milliseconds()
 	e.ready = true
 	logger.Info("engine.ready", "entities", len(e.ents), "recover_ms", e.recMS)
